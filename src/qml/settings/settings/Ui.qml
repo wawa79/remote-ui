@@ -134,6 +134,27 @@ Settings.Page {
                     /** KEYBOARD NAVIGATION **/
                     highlight: activeFocus && ui.keyNavigationActive
                     KeyNavigation.up: activityBarSwitch
+                    KeyNavigation.down: apiActivityStopSwitch
+                }
+            }
+
+            /** CLOSE ACTIVITIES STOPPED VIA THE API **/
+            Components.SettingRow {
+                title: qsTr("Close activities stopped with the API")
+                help: qsTr("Close the activity screen when an activity is stopped outside of the remote, returning to the underlying page.")
+
+                Components.Switch {
+                    id: apiActivityStopSwitch
+                    icon: "uc:check"
+                    checked: Config.closeActivityOnApiStop
+
+                    trigger: function() {
+                        Config.closeActivityOnApiStop = !Config.closeActivityOnApiStop;
+                    }
+
+                    /** KEYBOARD NAVIGATION **/
+                    highlight: activeFocus && ui.keyNavigationActive
+                    KeyNavigation.up: apiActivitySwitch
                     KeyNavigation.down: mediaComponentSwitch
                 }
             }
@@ -153,7 +174,7 @@ Settings.Page {
 
                     /** KEYBOARD NAVIGATION **/
                     highlight: activeFocus && ui.keyNavigationActive
-                    KeyNavigation.up: apiActivitySwitch
+                    KeyNavigation.up: apiActivityStopSwitch
                     KeyNavigation.down: mediaCoverflowSwitch
                 }
             }

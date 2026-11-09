@@ -178,6 +178,12 @@ class Activity : public Base {
      */
     void markStartedFromRemote() { m_startedFromRemote = true; }
 
+    /**
+     * @brief Marks the activity as stopped from this remote, so that the next
+     *        transition to the Off state is not reported as an external stop.
+     */
+    void markStoppedFromRemote() { m_stoppedFromRemote = true; }
+
  signals:
     void totalStepsChanged();
     void currentStepChanged();
@@ -198,6 +204,8 @@ class Activity : public Base {
     void startedRunning(QString entityId, QString cmdId);
     // the activity turned on without being started from this remote, e.g. through the API
     void startedExternally(QString entityId);
+    // the activity turned off without being stopped from this remote, e.g. through the API
+    void stoppedExternally(QString entityId);
     void sendCommandToEntity(QString entityId, QString command, QVariantMap params = QVariantMap());
 
  private:
@@ -221,6 +229,8 @@ class Activity : public Base {
 
     // set when a start command was sent from this remote, cleared when the activity settles again
     bool m_startedFromRemote = false;
+    // set when a stop command was sent from this remote, cleared when the activity settles again
+    bool m_stoppedFromRemote = false;
     // the last state the core reported that says whether the activity is running: not Unavailable or Unknown,
     // and not the Unavailable every entity is set to while the core is disconnected
     int m_lastReportedState = -1;

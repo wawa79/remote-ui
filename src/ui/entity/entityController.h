@@ -211,6 +211,7 @@ class EntityController : public QObject {
     void dateTimeFormatChanged(QString language, QString timezone, bool clock24h);
     void activityStartedRunning(QString entityId, QString cmdId);
     void activityStartedExternally(QString entityId);
+    void activityStoppedExternally(QString entityId);
     void voiceAssistantCommandError(QString entityId, int code);
     void allEntitiesLoaded();
     void commandInProgressChanged();
@@ -345,6 +346,7 @@ class EntityController : public QObject {
     void onRemoveFromActivities(QString entityId);
     void onActivityStartedRunning(QString entityId, QString cmdId);
     void onActivityStartedExternally(QString entityId);
+    void onActivityStoppedExternally(QString entityId);
     void onResumeTimerTimeout();
 };
 
