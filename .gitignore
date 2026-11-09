@@ -104,3 +104,9 @@ qt-creator-license-template
 **/skills/openspec-*/
 /tools/env/
 /_work/
+
+# logs
+/logs/
+remote-ui.log
+
+/.build-windows/

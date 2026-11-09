@@ -578,6 +578,8 @@ void EntityController::addEntityObject(core::Entity entity) {
                                  &EntityController::onActivityStartedRunning);
                 QObject::connect(activity, &entity::Activity::startedExternally, this,
                                  &EntityController::onActivityStartedExternally);
+                QObject::connect(activity, &entity::Activity::stoppedExternally, this,
+                                &EntityController::onActivityStoppedExternally);                                 
                 QObject::connect(activity, &entity::Activity::sendCommandToEntity, this,
                                  [this](const QString& entityId, const QString& command, QVariantMap params) {
                                      if (refuseUnavailableEntity(entityId, command)) {
@@ -992,6 +994,12 @@ void EntityController::onEntityCommand(const QString& entityId, const QString& c
         }
     }
 
+    if (command == "activity.off") {
+        if (auto activity = qobject_cast<entity::Activity*>(m_entities.value(entityId))) {
+            activity->markStoppedFromRemote();
+        }
+    }
+
     pendingCommand pendingCmd;
     pendingCmd.entityId = entityId;
     pendingCmd.command = command;
@@ -1230,6 +1238,10 @@ void EntityController::onActivityStartedRunning(QString entityId, QString cmdId)
 
 void EntityController::onActivityStartedExternally(QString entityId) {
     emit activityStartedExternally(entityId);
+}
+
+void EntityController::onActivityStoppedExternally(QString entityId) {
+    emit activityStoppedExternally(entityId);
 }
 
 void EntityController::onResumeTimerTimeout() {

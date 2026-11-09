@@ -100,6 +100,8 @@ class Config : public QObject {
         bool enableActivityBar READ getEnableActivityBar WRITE setEnableActivityBar NOTIFY enableActivityBarChanged)
     Q_PROPERTY(bool openActivityOnApiStart READ getOpenActivityOnApiStart WRITE setOpenActivityOnApiStart NOTIFY
                    openActivityOnApiStartChanged)
+    Q_PROPERTY(bool closeActivityOnApiStop READ getCloseActivityOnApiStop WRITE setCloseActivityOnApiStop NOTIFY
+                closeActivityOnApiStopChanged)                   
     Q_PROPERTY(bool fillMediaArtwork READ getFillMediaArtwork WRITE setFillMediaArtwork NOTIFY fillMediaArtworkChanged)
     Q_PROPERTY(bool mediaCoverflowDefault READ getMediaCoverflowDefault WRITE setMediaCoverflowDefault NOTIFY
                    mediaCoverflowDefaultChanged)
@@ -191,6 +193,9 @@ class Config : public QObject {
 
     bool getOpenActivityOnApiStart();
     void setOpenActivityOnApiStart(bool value);
+
+    bool getCloseActivityOnApiStop();
+    void setCloseActivityOnApiStop(bool value);
 
     bool getFillMediaArtwork();
     void setFillMediaArtwork(bool value);
@@ -367,6 +372,7 @@ class Config : public QObject {
     void showBatteryEveryWhereChanged();
     void enableActivityBarChanged();
     void openActivityOnApiStartChanged();
+    void closeActivityOnApiStopChanged();
     void fillMediaArtworkChanged();
     void mediaCoverflowDefaultChanged();
     void resumeTimeoutWindowSecChanged(int value);

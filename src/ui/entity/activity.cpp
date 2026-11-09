@@ -204,10 +204,24 @@ bool Activity::updateAttribute(const QString &attribute, QVariant data) {
                             emit startedExternally(m_id);
                         }
                         break;
+
                     case ActivityStates::Off:
+                        m_startedFromRemote = false;
+
+                        // Only report a stop when the activity really transitions
+                        // from On to Off, and the stop was not requested by this remote.
+                        if (wasOn && !m_stoppedFromRemote) {
+                            emit stoppedExternally(m_id);
+                        }
+
+                        m_stoppedFromRemote = false;
+                        emit removeFromActivities(m_id);
+                        break;
+
                     case ActivityStates::Error:
                     case ActivityStates::Timeout:
                         m_startedFromRemote = false;
+                        m_stoppedFromRemote = false;
                         emit removeFromActivities(m_id);
                         break;
                 }

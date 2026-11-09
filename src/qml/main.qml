@@ -103,7 +103,9 @@ ApplicationWindow {
       */
     function openActivity(entityObj) {
         // already showing this activity and nothing on top of it: leave it alone
-        if (containerSecond.loader.item && containerSecond.loader.item.entityId === entityObj.id
+        if (containerSecond.loader.status === Loader.Ready
+                && containerSecond.loader.item
+                && containerSecond.loader.item.entityId === entityObj.id
                 && !containerThird.loaderThird.active) {
             return;
         }
@@ -381,6 +383,24 @@ ApplicationWindow {
                 console.debug("Opening activity started via the API:", entityId);
                 openActivity(entityObj);
             }
+            function onActivityStoppedExternally(entityId) {
+                if (!Config.closeActivityOnApiStop || ui.isOnboarding) {
+                    return;
+                }
+
+                // Only close the screen if it still belongs to the stopped activity.
+                if (!containerSecond.loader.item
+                        || containerSecond.loader.item.entityId !== entityId) {
+                    return;
+                }
+
+                console.debug("Closing activity stopped via the API:", entityId);
+
+                // Ask the activity to close normally.
+                // Its closed() signal will trigger the existing Connections handler,
+                // which unloads the Loader and closes containerSecond.
+                containerSecond.loader.item.close();
+            }
         }
 
         Connections {
@@ -474,9 +494,8 @@ ApplicationWindow {
                 ignoreUnknownSignals: true
 
                 function onClosed() {
-                    console.debug("Second container closed signal called");
                     loader.source = "";
-                    loader.active = false
+                    loader.active = false;
                     containerSecond.close();
                     root.isActivityOpen = false;
                 }
