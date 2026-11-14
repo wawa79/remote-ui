@@ -319,6 +319,12 @@ ApplicationWindow {
             id: containerMain
             anchors.fill: parent
             asynchronous: true
+
+            onLoaded: {
+                if (item) {
+                    item.mainWindow = applicationWindow;
+                }
+            }
         }
 
         Connections {

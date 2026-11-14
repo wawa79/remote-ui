@@ -21,6 +21,7 @@ import "qrc:/components/entities/media_player" as MediaPlayerComponents
 
 Item {
     id: mainContainerRoot
+    property var mainWindow: null
     width: parent.width; height: parent.height
     clip: true
     enabled: state === "visible" ? true : false

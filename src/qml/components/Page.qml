@@ -361,9 +361,11 @@ ListView {
                                                 && mediaComponentEntity.mediaImage !== "";
                         }
 
-                        function findButtonMap(entity, buttonName) {
-                            const buttonMap = entity.buttonMapping.find(buttonMap => buttonMap.button === buttonName);
-                            return buttonMap ? buttonMap["short_press"] : undefined;
+                        function findButtonMap(entity, buttonName, pressType = "short_press") {
+                            const buttonMap = entity.buttonMapping.find(
+                                buttonMap => buttonMap.button === buttonName
+                            );
+                            return buttonMap ? buttonMap[pressType] : undefined;
                         }
 
                         function triggerCommand(entityId, cmdId, params) {
@@ -453,6 +455,29 @@ ListView {
                         Components.ButtonNavigation {
                             overrideActive: page._isCurrentItem && activityListItem._isCurrentItem && ui.inputController.activeItem == mainContainerRoot
                             defaultConfig: {
+                                "DPAD_MIDDLE": {
+                                    "pressed": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        mainContainerRoot.mainWindow.openActivity(entity);
+                                    },
+                                    "long_press": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        if (entity.type === EntityTypes.Activity) {
+                                            const mapping = findButtonMap(entity, "DPAD_MIDDLE", "long_press");
+                                            if (mapping) {
+                                                triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
+                                            }
+                                        }
+                                    }
+                                },
                                 "VOLUME_UP": {
                                     "pressed": function() {
                                         if (mainContainerBlockingMouseArea.enabled) {
@@ -504,6 +529,19 @@ ListView {
                                         } else if (entity.type === EntityTypes.Media_player) {
                                             mediaComponentEntity.muteToggle();
                                         }
+                                    },
+                                    "long_press": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        if (entity.type === EntityTypes.Activity) {
+                                            const mapping = findButtonMap(entity, "MUTE", "long_press");
+                                            if (mapping) {
+                                                triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
+                                            }
+                                        }
                                     }
                                 },
                                 "PLAY": {
@@ -514,12 +552,25 @@ ListView {
                                         }
 
                                         if (entity.type === EntityTypes.Activity) {
-                                            const mapping = findButtonMap(entity, "PLAY");
+                                            const mapping = findButtonMap(entity, "PLAY", "short_press");
                                             if (mapping) {
                                                 triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
                                             }
                                         } else if (entity.type === EntityTypes.Media_player) {
                                             mediaComponentEntity.playPause();
+                                        }
+                                    },
+                                    "long_press": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        if (entity.type === EntityTypes.Activity) {
+                                            const mapping = findButtonMap(entity, "PLAY", "long_press");
+                                            if (mapping) {
+                                                triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
+                                            }
                                         }
                                     }
                                 },
@@ -538,6 +589,19 @@ ListView {
                                         } else if (entity.type === EntityTypes.Media_player) {
                                             mediaComponentEntity.previous();
                                         }
+                                    },
+                                    "long_press": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        if (entity.type === EntityTypes.Activity) {
+                                            const mapping = findButtonMap(entity, "PREV", "long_press");
+                                            if (mapping) {
+                                                triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
+                                            }
+                                        }
                                     }
                                 },
                                 "NEXT": {
@@ -554,6 +618,19 @@ ListView {
                                             }
                                         } else if (entity.type === EntityTypes.Media_player) {
                                             mediaComponentEntity.next();
+                                        }
+                                    },
+                                    "long_press": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        if (entity.type === EntityTypes.Activity) {
+                                            const mapping = findButtonMap(entity, "NEXT", "long_press");
+                                            if (mapping) {
+                                                triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
+                                            }
                                         }
                                     }
                                 },
@@ -615,8 +692,141 @@ ListView {
 
                                         popupMenu.menuItems = menuItems;
                                         popupMenu.open();
+                                    },
+                                    "long_press": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        if (entity.type === EntityTypes.Activity) {
+                                            const mapping = findButtonMap(entity, "POWER", "long_press");
+                                            if (mapping) {
+                                                triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
+                                            }
+                                        }
                                     }
-                                }
+                                },
+                                "RED": {
+                                    "pressed": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        if (entity.type === EntityTypes.Activity) {
+                                            const mapping = findButtonMap(entity, "RED");
+                                            if (mapping) {
+                                                triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
+                                            }
+                                        } else if (entity.type === EntityTypes.Media_player) {
+                                            mediaComponentEntity.previous();
+                                        }
+                                    },
+                                    "long_press": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        if (entity.type === EntityTypes.Activity) {
+                                            const mapping = findButtonMap(entity, "RED", "long_press");
+                                            if (mapping) {
+                                                triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
+                                            }
+                                        }
+                                    }
+                                },
+                                "GREEN": {
+                                    "pressed": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        if (entity.type === EntityTypes.Activity) {
+                                            const mapping = findButtonMap(entity, "GREEN");
+                                            if (mapping) {
+                                                triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
+                                            }
+                                        } else if (entity.type === EntityTypes.Media_player) {
+                                            mediaComponentEntity.previous();
+                                        }
+                                    },
+                                    "long_press": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        if (entity.type === EntityTypes.Activity) {
+                                            const mapping = findButtonMap(entity, "GREEN", "long_press");
+                                            if (mapping) {
+                                                triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
+                                            }
+                                        }
+                                    }
+                                },
+                                "BLUE": {
+                                    "pressed": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        if (entity.type === EntityTypes.Activity) {
+                                            const mapping = findButtonMap(entity, "BLUE");
+                                            if (mapping) {
+                                                triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
+                                            }
+                                        } else if (entity.type === EntityTypes.Media_player) {
+                                            mediaComponentEntity.previous();
+                                        }
+                                    },
+                                    "long_press": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        if (entity.type === EntityTypes.Activity) {
+                                            const mapping = findButtonMap(entity, "BLUE", "long_press");
+                                            if (mapping) {
+                                                triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
+                                            }
+                                        }
+                                    }
+                                },
+                                "YELLOW": {
+                                    "pressed": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        if (entity.type === EntityTypes.Activity) {
+                                            const mapping = findButtonMap(entity, "YELLOW");
+                                            if (mapping) {
+                                                triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
+                                            }
+                                        } else if (entity.type === EntityTypes.Media_player) {
+                                            mediaComponentEntity.previous();
+                                        }
+                                    },
+                                    "long_press": function() {
+                                        if (mainContainerBlockingMouseArea.enabled) {
+                                            mainContainerRoot.closeMenu();
+                                            return;
+                                        }
+
+                                        if (entity.type === EntityTypes.Activity) {
+                                            const mapping = findButtonMap(entity, "YELLOW", "long_press");
+                                            if (mapping) {
+                                                triggerCommand(mapping.entity_id, mapping.cmd_id, mapping.params);
+                                            }
+                                        }
+                                    }
+                                },
                             }
                         }
 
