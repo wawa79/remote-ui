@@ -465,7 +465,7 @@ ListView {
 
                         Components.ButtonNavigation {
                             id: headerButtonNavigation
-                            overrideActive: page._isCurrentItem && activityListItem._isCurrentItem && ui.inputController.activeItem == mainContainerRoot
+                            overrideActive: page._isCurrentItem && activityList.visible && activityListItem._isCurrentItem && ui.inputController.activeItem == mainContainerRoot
                             defaultConfig: {
                                 "VOLUME_UP": {
                                     "pressed": function() {

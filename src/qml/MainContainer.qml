@@ -7,6 +7,7 @@ import QtQuick.Layouts 1.15
 import QtGraphicalEffects 1.0
 import QtQml.Models 2.1
 
+import Entity.Activity 1.0
 import Entity.Controller 1.0
 import Entity.MediaPlayer 1.0
 import Group.Controller 1.0
@@ -394,25 +395,35 @@ Item {
                     }
 
                     if (!currentEntity.delegateItem.groupObj) {
-                        if (Config.entityButtonFuncInverted) {
+                        if (Config.entityButtonFuncInverted
+                            || (currentEntity.delegateItem.entityObj.type === EntityTypes.Activity
+                                && (currentEntity.delegateItem.entityObj.state === ActivityStates.Running
+                                    || currentEntity.delegateItem.entityObj.state === ActivityStates.On))) {
                             currentEntity.delegateItem.open();
                         } else {
                             currentEntity.delegateItem.control();
                         }
                     } else {
                         if (currentEntity.delegateItem.state === "closed") {
-                            if (Config.entityButtonFuncInverted) {
+                            if (Config.entityButtonFuncInverted
+                                || (currentEntity.delegateItem.entityObj.type === EntityTypes.Activity
+                                    && (currentEntity.delegateItem.entityObj.state === ActivityStates.Running
+                                        || currentEntity.delegateItem.entityObj.state === ActivityStates.On))) {
                                 currentEntity.delegateItem.open();
                             } else {
                                 currentEntity.delegateItem.toggle();
                             }
                         } else {
+                            const item = currentEntity.delegateItem.groups.currentItem.item;
                             // open() and control() refuse an unavailable entity themselves, on a
                             // page and inside a group alike
-                            if (Config.entityButtonFuncInverted) {
+                            if (Config.entityButtonFuncInverted
+                                || (item.entityObj.type === EntityTypes.Activity
+                                && (item.entityObj.state === ActivityStates.Running
+                                    || item.entityObj.state === ActivityStates.On))) {
                                 currentEntity.delegateItem.groups.currentItem.item.open();
                             } else {
-                                currentEntity.delegateItem.groups.currentItem.item.control();
+                                item.control();
                             }
                         }
                     }
@@ -484,6 +495,66 @@ Item {
                             currentEntity.delegateItem.open();
                         }
                     }
+                }
+            },
+            "POWER": {
+                "pressed": function() {
+                    if (mainContainerBlockingMouseArea.enabled) {
+                        mainContainerRoot.closeMenu();
+                        return;
+                    }
+
+                    if (EntityController.activities.length === 0) {
+                        return;
+                    }
+
+                    popupMenu.title = qsTr("Turn off");
+                    let menuItems = [];
+
+                    for (let i = 0; i<EntityController.activities.length; i++) {
+                        const e = EntityController.activities[i];
+
+                        const entityObj = EntityController.get(e);
+
+                        if (entityObj.hasFeature(MediaPlayerFeatures.On_off) || entityObj.type == EntityTypes.Activity) {
+                            menuItems.push({
+                                               title: entityObj.name,
+                                               icon: entityObj.icon,
+                                               callback: function() {
+                                                   if (entityObj.type == EntityTypes.Activity) {
+                                                       checkActivityReadiness(entityObj, false, function(activityObj) {
+                                                           activityObj.turnOff();
+                                                       });
+                                                   } else {
+                                                       entityObj.turnOff();
+                                                   }
+                                               }
+                                           });
+                        }
+                    }
+
+                    if (EntityController.activities.length > 1) {
+                        menuItems.push({
+                                           title: qsTr("Turn off all"),
+                                           icon: "uc:power-off",
+                                           callback: function() {
+                                               for (let i = 0; i<EntityController.activities.length; i++) {
+                                                   const eObj = EntityController.get(EntityController.activities[i]);
+
+                                                   if (eObj.type == EntityTypes.Activity) {
+                                                       checkActivityReadiness(eObj, false, function(activityObj) {
+                                                           activityObj.turnOff();
+                                                       });
+                                                   } else {
+                                                       eObj.turnOff();
+                                                   }
+                                               }
+                                           }
+                                       });
+                    }
+
+                    popupMenu.menuItems = menuItems;
+                    popupMenu.open();
                 }
             },
             "HOME": {
