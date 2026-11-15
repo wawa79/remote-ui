@@ -87,6 +87,7 @@ EntityComponents.BaseDetail {
     EntityComponents.BaseTitle {
         id: title
         icon: entityObj.icon
+        suffix: entityObj.currentOption
         title: entityObj.name
     }
 
