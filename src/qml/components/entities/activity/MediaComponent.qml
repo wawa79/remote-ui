@@ -372,7 +372,7 @@ Rectangle {
             bottom: mediaComponent.isComponentHorizontal ? parent.bottom : undefined
             left: mediaTitle.left
         }
-        visible: mediaComponent.controlsContainerHeight > 0 && mediaTitle.visible
+        visible: false
 
         Components.Icon {
             Layout.fillWidth: true
