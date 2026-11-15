@@ -107,15 +107,31 @@ QString Resources::getIconPlaceholder() {
 }
 
 QString Resources::getIcon(const QString& id, const QString& suffix) {
-    // State variants of an icon (e.g. "-on" / "-off") are not supported yet.
-    Q_UNUSED(suffix)
-
     if (id.isEmpty()) {
         qCWarning(lcResources()) << "Empty ID passed to getIcon()";
         return QString();
     }
 
-    // The file name is used as is: whatever image format the image loader can decode is accepted.
+    // State variants apply to custom icons only. Built-in glyphs and TV channel icons keep their original ID.
+    const QStringList parts = id.split(":");
+    if (!suffix.isEmpty() && parts.size() >= 2 && parts[0].contains("custom")) {
+        // Normalize labels for portable filenames: lowercase, remove accents, and replace non-alphanumerics with "_".
+        QString state = suffix.toLower().normalized(QString::NormalizationForm_D);
+        state.remove(QRegularExpression(QStringLiteral("\\p{M}")));
+        state.replace(QRegularExpression(QStringLiteral("[^\\p{L}\\p{N}]+")), QStringLiteral("_"));
+        state.remove(QRegularExpression(QStringLiteral("^_+|_+$")));
+
+        const QFileInfo iconInfo(parts[1]);
+        const QString variantName =
+            iconInfo.completeBaseName() + "-" + state + "." + iconInfo.suffix();
+        const QString variantPath = m_resourcePaths.value(Icon) + variantName;
+
+        if (!state.isEmpty() && QFile::exists(variantPath)) {
+            return getResource(Icon, parts[0] + ":" + variantName);
+        }
+    }
+
+    // Fall back to the original file when no state-specific variant exists.
     return getResource(id.contains("ctv:") ? TvChannelIcon : Icon, id);
 }
 
