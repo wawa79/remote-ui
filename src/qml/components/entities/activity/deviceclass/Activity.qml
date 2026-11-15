@@ -31,6 +31,31 @@ EntityComponents.BaseDetail {
     // while it is shown, so exactly one layer reacts to a key.
     property int menuSelected: 0
 
+    function getActivityDisplayEntity() {
+        const includedIds = entityObj.includedEntities;
+        let matchingEntity = null;
+
+        for (let i = 0; i < includedIds.length; i++) {
+            const includedEntity = EntityController.get(includedIds[i]);
+
+            if (includedEntity && includedEntity.name === entityObj.name) {
+                // Only synchronize when the name identifies exactly one included entity.
+                if (matchingEntity) {
+                    return null;
+                }
+
+                matchingEntity = includedEntity;
+            }
+        }
+
+        return matchingEntity;
+    }
+
+    function getActivityDisplayStatus() {
+        const matchingEntity = getActivityDisplayEntity();
+        return matchingEntity ? matchingEntity.stateInfo : "";
+    }
+
     function menuList() {
         return extraContent.currentIndex === 0 ? includedEntitiesList : fixedEntitiesList;
     }
@@ -478,7 +503,21 @@ EntityComponents.BaseDetail {
 
         Components.Icon {
             id: iconOpen
-            icon: entityObj.icon
+            // Reuse the icon of the uniquely linked included entity, just like its state in the header.
+            icon: {
+                const linkedEntity = activityBase.getActivityDisplayEntity();
+                return linkedEntity ? linkedEntity.icon : entityObj.icon;
+            }
+            // Apply the linked entity's dynamic icon variant in the activity header.
+            suffix: {
+                const linkedEntity = activityBase.getActivityDisplayEntity();
+                if (!linkedEntity) {
+                    return "";
+                }
+                return linkedEntity.type === EntityTypes.Select
+                        ? linkedEntity.currentOption
+                        : linkedEntity.stateAsString;
+            }
             color: colors.offwhite
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
             size: 70
@@ -506,7 +545,20 @@ EntityComponents.BaseDetail {
             Text {
                 id: titleDesc
                 //: Tap to close menu, tap to see more or, after a failed run, tap to fix the state
-                text: activityMenu.opened ? qsTr("Tap to close") : (title.alert ? qsTr("Tap to fix") : qsTr("Tap for more"))
+                // text: activityMenu.opened ? qsTr("Tap to close") : (title.alert ? qsTr("Tap to fix") : qsTr("Tap for more"))
+                // visible: activityMenu.opened || title.alert
+                text: {
+                    if (activityMenu.opened) {
+                        return qsTr("Tap to close");
+                    }
+
+                    if (title.alert) {
+                        return qsTr("Tap to fix");
+                    }
+
+                    return activityBase.getActivityDisplayStatus();
+                }
+                visible: text !== ""
                 width: parent.width
                 height: visible ? implicitHeight : 0
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
@@ -522,6 +574,7 @@ EntityComponents.BaseDetail {
 
         Components.HapticMouseArea {
             anchors.fill: parent
+            enabled: false
             onClicked: {
                 if (activityMenu.opened) {
                     closeMenu();

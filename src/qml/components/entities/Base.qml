@@ -68,6 +68,53 @@ Rectangle {
 
     property bool hasMediaImage: currentEntityObj.type === EntityTypes.Media_player && currentEntityObj.mediaImage != ""
 
+
+    function getActivityDisplayEntity() {
+        if (currentEntityObj.type !== EntityTypes.Activity) {
+            return null;
+        }
+
+        const includedIds = currentEntityObj.includedEntities;
+        let matchingEntity = null;
+
+        // Only synchronize when the activity name identifies exactly one included entity.
+        for (let i = 0; i < includedIds.length; i++) {
+            const includedEntity = EntityController.get(includedIds[i]);
+
+            if (includedEntity && includedEntity.name === currentEntityObj.name) {
+                if (matchingEntity) {
+                    return null;
+                }
+
+                matchingEntity = includedEntity;
+            }
+        }
+
+        return matchingEntity;
+    }
+
+    function getDisplayStateInfo() {
+        const matchingEntity = getActivityDisplayEntity();
+        return matchingEntity ? matchingEntity.stateInfo : currentEntityObj.stateInfo;
+    }
+
+    function getDisplayIcon() {
+        const matchingEntity = getActivityDisplayEntity();
+        return matchingEntity ? matchingEntity.icon : currentEntityObj.icon;
+    }
+
+    function getDisplayIconSuffix() {
+        const matchingEntity = getActivityDisplayEntity();
+        if (!matchingEntity) {
+            return currentEntityObj.stateAsString;
+        }
+
+        return matchingEntity.type === EntityTypes.Select
+                ? matchingEntity.currentOption
+                : matchingEntity.stateAsString;
+    }
+
+
     function ensureEntityLoaded() {
         const e = EntityController.get(entityBaseContainer.entityId);
 
@@ -461,8 +508,8 @@ Rectangle {
     Components.Icon {
         id: icon
         color: colors.offwhite
-        icon: hasMediaImage ? "" : currentEntityObj.icon
-        suffix: currentEntityObj.stateAsString
+        icon: hasMediaImage ? "" : getDisplayIcon()
+        suffix: getDisplayIconSuffix()
         anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter; }
         size: 100
         visible: currentEntityObj.enabled
@@ -566,7 +613,8 @@ Rectangle {
                 id: statusText
 
                 Layout.fillWidth: true
-                text: currentEntityObj.stateInfo
+                // text: currentEntityObj.stateInfo
+                text: entityBaseContainer.getDisplayStateInfo()
                 maximumLineCount: 1
                 elide: Text.ElideRight
                 // on the selection fill everything is drawn in the primary text colour
