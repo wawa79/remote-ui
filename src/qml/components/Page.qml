@@ -144,7 +144,7 @@ ListView {
 
     on_IsCurrentItemChanged: {
         if (!page._isCurrentItem) {
-            ui.setTimeOut(100, () =>{ page.currentIndex = 0; });
+            ui.setTimeOut(100, () =>{if (!page._isCurrentItem) { page.currentIndex = 0; }});
             if (ui.editMode) {
                 ui.editMode = false;
             }
@@ -451,7 +451,7 @@ ListView {
                         // TODO: map buttons to activity button mapping if exists
 
                         Components.ButtonNavigation {
-                            overrideActive: page._isCurrentItem && activityListItem._isCurrentItem && ui.inputController.activeItem == mainContainerRoot
+                            overrideActive: page._isCurrentItem && activityList.visible && activityListItem._isCurrentItem && ui.inputController.activeItem == mainContainerRoot
                             defaultConfig: {
                                 "VOLUME_UP": {
                                     "pressed": function() {
@@ -557,66 +557,7 @@ ListView {
                                         }
                                     }
                                 },
-                                "POWER": {
-                                    "pressed": function() {
-                                        if (mainContainerBlockingMouseArea.enabled) {
-                                            mainContainerRoot.closeMenu();
-                                            return;
-                                        }
 
-                                        if (EntityController.activities.length === 0) {
-                                            return;
-                                        }
-
-                                        popupMenu.title = qsTr("Turn off");
-                                        let menuItems = [];
-
-                                        for (let i = 0; i<EntityController.activities.length; i++) {
-                                            const e = EntityController.activities[i];
-
-                                            const entityObj = EntityController.get(e);
-
-                                            if (entityObj.hasFeature(MediaPlayerFeatures.On_off) || entityObj.type == EntityTypes.Activity) {
-                                                menuItems.push({
-                                                                   title: entityObj.name,
-                                                                   icon: entityObj.icon,
-                                                                   callback: function() {
-                                                                       if (entityObj.type == EntityTypes.Activity) {
-                                                                           checkActivityReadiness(entityObj, false, function(activityObj) {
-                                                                               activityObj.turnOff();
-                                                                           });
-                                                                       } else {
-                                                                           entityObj.turnOff();
-                                                                       }
-                                                                   }
-                                                               });
-                                            }
-                                        }
-
-                                        if (EntityController.activities.length > 1) {
-                                            menuItems.push({
-                                                               title: qsTr("Turn off all"),
-                                                               icon: "uc:power-off",
-                                                               callback: function() {
-                                                                   for (let i = 0; i<EntityController.activities.length; i++) {
-                                                                       const eObj = EntityController.get(EntityController.activities[i]);
-
-                                                                       if (eObj.type == EntityTypes.Activity) {
-                                                                           checkActivityReadiness(eObj, false, function(activityObj) {
-                                                                               activityObj.turnOff();
-                                                                           });
-                                                                       } else {
-                                                                           eObj.turnOff();
-                                                                       }
-                                                                   }
-                                                               }
-                                                           });
-                                        }
-
-                                        popupMenu.menuItems = menuItems;
-                                        popupMenu.open();
-                                    }
-                                }
                             }
                         }
 
