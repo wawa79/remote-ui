@@ -94,8 +94,19 @@ Controller::Controller(HardwareModel::Enum model, int width, int height, QQmlApp
     MediaImageProvider::install(m_engine);
 
     // load controllers
+    QString soundEffectsPath = qEnvironmentVariable("UC_SOUND_EFFECTS_PATH");
+
+    if (soundEffectsPath.isEmpty()) {
+        soundEffectsPath = qEnvironmentVariable("UC_CONFIG_HOME");
+
+        qCInfo(lcUi()) << "[SoundEffects] UC_SOUND_EFFECTS_PATH is empty,"
+                       << "using UC_CONFIG_HOME as fallback:" << soundEffectsPath;
+    } else {
+        qCInfo(lcUi()) << "[SoundEffects] Using UC_SOUND_EFFECTS_PATH:" << soundEffectsPath;
+    }
+
     m_soundEffects = new SoundEffects(m_config->getSoundVolume(), m_config->getSoundEnabled(),
-                                      qgetenv("UC_SOUND_EFFECTS_PATH"), m_model, this);
+                                      soundEffectsPath, m_model, this);
     m_soundEffects->initialize();
     qmlRegisterSingletonType<SoundEffects>("SoundEffects", 1, 0, "SoundEffects", &SoundEffects::qmlInstance);
 
