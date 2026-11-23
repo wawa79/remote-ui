@@ -24,20 +24,78 @@ SoundEffects::~SoundEffects() {
 }
 
 void SoundEffects::initialize() {
+    qCInfo(lcUi()) << "[SoundEffects] Initializing sound effects";
+    qCInfo(lcUi()) << "[SoundEffects] Effects directory:" << m_effectsDir;
+
     if (m_effectsDir.isEmpty()) {
-        qCInfo(lcUi()) << "UC_SOUND_EFFECTS_PATH not set: sound effects are disabled";
+        qCWarning(lcUi())
+            << "[SoundEffects] UC_SOUND_EFFECTS_PATH is empty: sound effects are disabled";
         return;
     }
 
-    if (!QDir(m_effectsDir).exists()) {
-        qCWarning(lcUi()) << "Sound effects directory not found, sound effects are disabled:" << m_effectsDir;
+    const QDir effectsDir(m_effectsDir);
+
+    if (!effectsDir.exists()) {
+        qCWarning(lcUi())
+            << "[SoundEffects] Sound effects directory does not exist:"
+            << m_effectsDir;
         return;
     }
 
-    QAudioDeviceInfo deviceInfo = QAudioDeviceInfo::defaultOutputDevice();
+    qCInfo(lcUi())
+        << "[SoundEffects] Sound effects directory exists:"
+        << effectsDir.absolutePath();
+
+    const QStringList soundFiles = {
+        QStringLiteral("click.wav"),
+        QStringLiteral("click_lo.wav"),
+        QStringLiteral("confirm.wav"),
+        QStringLiteral("error.wav"),
+        QStringLiteral("zap_future.wav")
+    };
+
+    for (const QString &fileName : soundFiles) {
+        const QFileInfo fileInfo(effectsDir.filePath(fileName));
+
+        if (!fileInfo.exists()) {
+            qCWarning(lcUi())
+                << "[SoundEffects] Missing sound file:" << fileInfo.absoluteFilePath();
+            continue;
+        }
+
+        if (!fileInfo.isFile()) {
+            qCWarning(lcUi())
+                << "[SoundEffects] Not a regular file:" << fileInfo.absoluteFilePath();
+            continue;
+        }
+
+        qCInfo(lcUi())
+            << "[SoundEffects] Sound file found:"
+            << fileInfo.absoluteFilePath()
+            << "- size:" << fileInfo.size()
+            << "bytes"
+            << "- readable:" << fileInfo.isReadable();
+    }
+
+    const QAudioDeviceInfo deviceInfo =
+        QAudioDeviceInfo::defaultOutputDevice();
+
+    if (deviceInfo.isNull()) {
+        qCWarning(lcUi())
+            << "[SoundEffects] No default audio output device available";
+    } else {
+        qCInfo(lcUi())
+            << "[SoundEffects] Default audio output device:"
+            << deviceInfo.deviceName();
+    }
+
+    qCInfo(lcUi())
+        << "[SoundEffects] Calling createEffects()";
+
     createEffects(deviceInfo);
 
-    qCDebug(lcUi()) << "Default audio output device:" << deviceInfo.deviceName();
+    qCInfo(lcUi())
+        << "[SoundEffects] createEffects() completed";
 }
 
 void SoundEffects::setVolume(int volume) {
