@@ -9,6 +9,24 @@
 
 namespace uc {
 namespace ui {
+namespace {
+
+const char *soundEffectStatusName(QSoundEffect::Status status) {
+    switch (status) {
+        case QSoundEffect::Null:
+            return "Null";
+        case QSoundEffect::Loading:
+            return "Loading";
+        case QSoundEffect::Ready:
+            return "Ready";
+        case QSoundEffect::Error:
+            return "Error";
+    }
+
+    return "Unknown";
+}
+
+}  // namespace
 
 SoundEffects *SoundEffects::s_instance = nullptr;
 
@@ -24,7 +42,9 @@ SoundEffects::~SoundEffects() {
 }
 
 void SoundEffects::initialize() {
-    qCInfo(lcUi()) << "[SoundEffects] Initializing sound effects";
+    qCInfo(lcUi()) << "[SoundEffects] Initializing sound effects"
+                   << "- enabled:" << m_enabled
+                   << "- volume:" << m_volume;
     qCInfo(lcUi()) << "[SoundEffects] Effects directory:" << m_effectsDir;
 
     if (m_effectsDir.isEmpty()) {
@@ -109,37 +129,57 @@ void SoundEffects::setVolume(int volume) {
 void SoundEffects::setEnabled(bool value) {
     if (m_enabled != value) {
         m_enabled = value;
-        qCDebug(lcUi()) << "Sound effects enabled changed to:" << m_enabled;
+        qCInfo(lcUi()) << "[SoundEffects] Enabled state changed to:" << m_enabled;
         emit enabledChanged();
     }
 }
 
 void SoundEffects::play(SoundEffects::SoundEffect effect) {
-    if (!m_enabled || !isAvailable()) {
-        return;
-    }
+    QSoundEffect *sound = nullptr;
+    const char *effectName = "Unknown";
 
     switch (effect) {
         case Click:
-            m_effectClick->setVolume(qreal(m_volume) / 100);
-            m_effectClick->play();
+            sound = m_effectClick;
+            effectName = "click";
             break;
         case ClickLow:
-            m_effectClickLow->setVolume(qreal(m_volume) / 100);
-            m_effectClickLow->play();
+            sound = m_effectClickLow;
+            effectName = "click_lo";
             break;
         case Confirm:
-            m_effectConfirm->setVolume(qreal(m_volume) / 100);
-            m_effectConfirm->play();
+            sound = m_effectConfirm;
+            effectName = "confirm";
             break;
         case Error:
-            m_effectError->setVolume(qreal(m_volume) / 100);
-            m_effectError->play();
+            sound = m_effectError;
+            effectName = "error";
             break;
         case BatteryCharge:
-            m_effectBatteryCharge->setVolume(qreal(m_volume) / 100);
-            m_effectBatteryCharge->play();
+            sound = m_effectBatteryCharge;
+            effectName = "zap_future";
+            break;
     }
+
+    qCInfo(lcUi())
+        << "[SoundEffects] play() requested:"
+        << effectName
+        << "- enabled:" << m_enabled
+        << "- available:" << isAvailable()
+        << "- status:" << (sound ? soundEffectStatusName(sound->status()) : "not created")
+        << "- volume:" << m_volume;
+
+    if (!m_enabled || !isAvailable() || !sound) {
+        qCInfo(lcUi())
+            << "[SoundEffects] Playback skipped for" << effectName;
+        return;
+    }
+
+    sound->setVolume(qreal(m_volume) / 100);
+    sound->play();
+
+    qCInfo(lcUi())
+        << "[SoundEffects] play() invoked for" << effectName;
 }
 
 QObject *SoundEffects::qmlInstance(QQmlEngine *engine, QJSEngine *scriptEngine) {
@@ -152,19 +192,38 @@ QObject *SoundEffects::qmlInstance(QQmlEngine *engine, QJSEngine *scriptEngine) 
 }
 
 void SoundEffects::createEffects(const QAudioDeviceInfo &deviceInfo) {
+    const auto monitorEffect = [this](QSoundEffect *effect, const QString &name) {
+        connect(effect, &QSoundEffect::statusChanged, this, [effect, name]() {
+            qCInfo(lcUi())
+                << "[SoundEffects]" << name
+                << "status changed to:" << soundEffectStatusName(effect->status());
+        });
+
+        connect(effect, &QSoundEffect::playingChanged, this, [effect, name]() {
+            qCInfo(lcUi())
+                << "[SoundEffects]" << name
+                << "playing changed to:" << effect->isPlaying();
+        });
+    };
+
     m_effectClick = new QSoundEffect(deviceInfo, this);
+    monitorEffect(m_effectClick, QStringLiteral("click"));
     m_effectClick->setSource(QUrl::fromLocalFile(m_effectsDir + QStringLiteral("/click.wav")));
 
     m_effectClickLow = new QSoundEffect(deviceInfo, this);
+    monitorEffect(m_effectClickLow, QStringLiteral("click_lo"));
     m_effectClickLow->setSource(QUrl::fromLocalFile(m_effectsDir + QStringLiteral("/click_lo.wav")));
 
     m_effectConfirm = new QSoundEffect(deviceInfo, this);
+    monitorEffect(m_effectConfirm, QStringLiteral("confirm"));
     m_effectConfirm->setSource(QUrl::fromLocalFile(m_effectsDir + QStringLiteral("/confirm.wav")));
 
     m_effectError = new QSoundEffect(deviceInfo, this);
+    monitorEffect(m_effectError, QStringLiteral("error"));
     m_effectError->setSource(QUrl::fromLocalFile(m_effectsDir + QStringLiteral("/error.wav")));
 
     m_effectBatteryCharge = new QSoundEffect(deviceInfo, this);
+    monitorEffect(m_effectBatteryCharge, QStringLiteral("zap_future"));
     m_effectBatteryCharge->setSource(QUrl::fromLocalFile(m_effectsDir + QStringLiteral("/zap_future.wav")));
 }
 
