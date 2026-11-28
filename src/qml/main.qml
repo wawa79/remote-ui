@@ -121,7 +121,9 @@ ApplicationWindow {
       */
     function openActivity(entityObj) {
         // already showing this activity and nothing on top of it: leave it alone
-        if (containerSecond.loader.item && containerSecond.loader.item.entityId === entityObj.id
+        if (containerSecond.loader.status === Loader.Ready
+                && containerSecond.loader.item
+                && containerSecond.loader.item.entityId === entityObj.id
                 && !containerThird.loaderThird.active) {
             return;
         }
@@ -494,6 +496,22 @@ ApplicationWindow {
                 openActivity(entityObj);
             }
 
+            // an activity stopped outside this remote, e.g. through the API: close its screen if it is still shown
+            function onActivityStoppedExternally(entityId) {
+                if (!Config.closeActivityOnApiStop || ui.isOnboarding) {
+                    return;
+                }
+
+                // Only close the screen if it still belongs to the stopped activity.
+                if (!containerSecond.loader.item
+                        || containerSecond.loader.item.entityId !== entityId) {
+                    return;
+                }
+
+                console.debug("Closing activity stopped via the API:", entityId);
+                containerSecond.loader.item.close();
+            }
+
             // ACTIVITY_VIEW controls only the visibility of the activity screen, not its sequence.
             function onActivityViewChanged(activityId, visible) {
                 if (ui.isOnboarding) {
@@ -623,7 +641,7 @@ ApplicationWindow {
                 function onClosed() {
                     console.info("Second container closed", loader.source);
                     loader.source = "";
-                    loader.active = false
+                    loader.active = false;
                     containerSecond.close();
                     root.isActivityOpen = false;
                 }
