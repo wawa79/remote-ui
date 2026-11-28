@@ -14,6 +14,7 @@ Base::Base(const QString &id, QVariantMap nameI18n, const QString &language, con
     : QObject(parent),
       m_id(id),
       m_name_i18n(nameI18n),
+      m_language(language),
       m_icon(icon),
       m_area(area),
       m_state(-1),
@@ -138,6 +139,7 @@ void Base::sendCommand(const QString &cmd) {
 }
 
 void Base::onLanguageChanged(QString language) {
+    m_language = language;
     m_name = Util::getLanguageString(m_name_i18n, language);
     emit nameChanged();
 

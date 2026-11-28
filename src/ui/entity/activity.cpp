@@ -18,10 +18,12 @@ static bool readyCheckOption(const QVariant& value) {
 
 Activity::Activity(const QString &id, QVariantMap nameI18n, const QString &language, const QString &icon,
                    const QString &area, const QString &deviceClass, const QStringList &features, bool enabled,
-                   QVariantMap attributes, QVariantMap options, const QString &integrationId, QObject *parent)
+                   QVariantMap attributes, QVariantMap description, QVariantMap options,
+                   const QString &integrationId, QObject *parent)
     : Base(id, nameI18n, language, icon, area, Type::Activity, enabled, attributes, integrationId, false, parent),
       m_currentStep(this) {
     qCDebug(lcActivity()) << "Activity entity constructor";
+    setDescription(description);
 
     updateFeatures<ActivityFeatures::Enum>(features);
 
@@ -298,8 +300,18 @@ bool Activity::updateOptions(QVariant data) {
     return ok;
 }
 
+void Activity::setDescription(const QVariantMap& description) {
+    m_descriptionI18n = description;
+    const QString value = Util::getLanguageString(m_descriptionI18n, m_language);
+    if (m_description != value) {
+        m_description = value;
+        emit descriptionChanged();
+    }
+}
+
 void Activity::onLanguageChangedTypeSpecific()
 {
+    setDescription(m_descriptionI18n);
     QTimer::singleShot(500, this, [=]() {
         const QString newStateAsString = ActivityStates::getTranslatedString(static_cast<ActivityStates::Enum>(m_state));
         if (m_stateAsString != newStateAsString) {

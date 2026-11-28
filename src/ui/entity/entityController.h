@@ -55,6 +55,7 @@ class EntityController : public QObject {
     Q_PROPERTY(ConfiguredEntities* configuredEntities READ getConfiguredEntities CONSTANT)
     Q_PROPERTY(int configuredEntitiesCount READ getConfiguredEntitiesCount NOTIFY configuredEntitiesCountChanged)
     Q_PROPERTY(QStringList activities READ getActivities NOTIFY activitiesChanged)
+    Q_PROPERTY(int activityVisibilityRevision READ getActivityVisibilityRevision NOTIFY activityVisibilityChanged)
     Q_PROPERTY(bool resumeWindow READ getResumeWindow NOTIFY resumewindowChanged)
     Q_PROPERTY(bool resumePending READ getResumePending NOTIFY resumePendingChanged)
     Q_PROPERTY(int resumeTimeout READ getResumeTimeout NOTIFY resumeTimeoutChanged)
@@ -70,6 +71,8 @@ class EntityController : public QObject {
     Q_INVOKABLE void    loadConfiguredEntities(const QString& integrationId);
     int                 getConfiguredEntitiesCount() { return m_configuredEntitiesCount; }
     QStringList         getActivities() { return m_activities; }
+    int                 getActivityVisibilityRevision() const { return m_activityVisibilityRevision; }
+    Q_INVOKABLE bool    isActivityTileVisible(const QString& entityId) const;
     bool                getResumeWindow() { return m_resumeWindow; }
     // true from the moment the remote goes to sleep until the resume window has closed again. The core
     // reports a wakeup only once it is through, so the resume window alone leaves the span in which the
@@ -192,7 +195,8 @@ class EntityController : public QObject {
     static entity::Base* createEntityObject(const QString& type, const QString& id, QVariantMap name,
                                             const QString& icon, const QString& area, const QString& deviceClass,
                                             const QStringList& features, QVariantMap options, bool enabled,
-                                            QVariantMap attributes, const QString& integrationId, QObject* parent);
+                                            QVariantMap attributes, QVariantMap description,
+                                            const QString& integrationId, QObject* parent);
 
     // static methods
     static QObject* qmlInstance(QQmlEngine* engine, QJSEngine* scriptEngine);
@@ -201,6 +205,7 @@ class EntityController : public QObject {
     void configuredEntitiesCountChanged();
     void entityLoaded(bool success, QString entityId);
     void activitiesChanged();
+    void activityVisibilityChanged();
     void resumewindowChanged();
     void resumePendingChanged();
     void resumeTimeoutChanged();
@@ -252,6 +257,7 @@ class EntityController : public QObject {
     ConfiguredEntities            m_configuredEntities;
     int                           m_configuredEntitiesCount = 0;
     QStringList                   m_activities;
+    int                            m_activityVisibilityRevision = 0;
 
     struct pendingCommand {
         QString     entityId;
@@ -326,6 +332,7 @@ class EntityController : public QObject {
     void setAllEntitiesAvailable(bool value);
 
     void retrySendAttempt(const QString& commandId);
+    void notifyActivityVisibilityChanged();
 
     /**
      * @brief Fetches a web view entity again for the secret values of its options.

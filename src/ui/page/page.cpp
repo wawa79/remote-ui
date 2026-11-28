@@ -3,6 +3,9 @@
 
 #include "page.h"
 
+#include <QSet>
+#include <QRegularExpression>
+
 #include "../../logging.h"
 #include "../notification.h"
 
@@ -252,23 +255,66 @@ void Page::removeActivity(QString entityId) {
     }
 }
 
-void Page::updateActivities(const QStringList &running, const GroupHasEntity &groupHasEntity) {
+void Page::updateActivities(const QStringList &running, const GroupHasEntity &groupHasEntity,
+                            const GetActivityDescription &getActivityDescription) {
     QStringList shown;
+    QSet<QString> runningActivities;
+
+    // Only activities (not playing media players) participate in the group-activity rule.
+    for (const QString &entityId : running) {
+        if (!getActivityDescription(entityId).isNull()) {
+            runningActivities.insert(entityId);
+        }
+    }
 
     for (const QString &entityId : running) {
+        bool onPage = false;
+        QStringList containingGroups;
+
         for (int i = 0; i < m_items->count(); i++) {
             const PageItem *item = m_items->getPageItem(i);
             if (!item) {
                 continue;
             }
 
-            const bool onPage = item->pageItemType() == PageItem::Group ? groupHasEntity(item->pageItemId(), entityId)
-                                                                        : item->pageItemId() == entityId;
-            if (onPage) {
-                shown.append(entityId);
-                break;
+            if (item->pageItemType() == PageItem::Group) {
+                if (groupHasEntity(item->pageItemId(), entityId)) {
+                    onPage = true;
+                    containingGroups.append(item->pageItemId());
+                }
+            } else if (item->pageItemId() == entityId) {
+                onPage = true;
             }
         }
+
+        if (!onPage) {
+            continue;
+        }
+
+        const QString description = getActivityDescription(entityId);
+        if (!description.isNull()) {
+            const QString directive = QStringLiteral("#HIDE_FROM_LIST=on_group_activity_started");
+            const QStringList lines = description.split(QRegularExpression(QStringLiteral("\\r?\\n")));
+            if (lines.contains(directive)) {
+                bool anotherActivityInSameGroupIsRunning = false;
+                for (const QString &groupId : containingGroups) {
+                    for (const QString &otherActivityId : runningActivities) {
+                        if (otherActivityId != entityId && groupHasEntity(groupId, otherActivityId)) {
+                            anotherActivityInSameGroupIsRunning = true;
+                            break;
+                        }
+                    }
+                    if (anotherActivityInSameGroupIsRunning) {
+                        break;
+                    }
+                }
+                if (anotherActivityInSameGroupIsRunning) {
+                    continue;
+                }
+            }
+        }
+
+        shown.append(entityId);
     }
 
     for (int i = m_activities->count() - 1; i >= 0; i--) {

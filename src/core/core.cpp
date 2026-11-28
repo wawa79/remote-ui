@@ -2135,6 +2135,10 @@ void Api::processResponseAvailableEntities(int reqId, int code, QVariant msgData
             entity.id = map.value("entity_id").toString();
             entity.type = uc::Util::FirstToUpper(map.value("entity_type").toString());
             entity.name = map.value("name").toMap();
+            if (map.contains("description")) {
+                entity.description = map.value("description").toMap();
+                entity.descriptionProvided = true;
+            }
             if (map.contains("icon")) {
                 entity.icon = map.value("icon").toString();
             }
@@ -2171,6 +2175,10 @@ void Api::processResponseEntity(int reqId, int code, QVariant msgData) {
     entity.id = map.value("entity_id").toString();
     entity.type = uc::Util::FirstToUpper(map.value("entity_type").toString());
     entity.name = map.value("name").toMap();
+    if (map.contains("description")) {
+        entity.description = map.value("description").toMap();
+        entity.descriptionProvided = true;
+    }
     if (map.contains("icon")) {
         entity.icon = map.value("icon").toString();
     }
@@ -2257,6 +2265,10 @@ void Api::processEntityChange(QVariant msgData) {
         entity.id = msgDataMap.value("entity_id").toString();
         entity.type = uc::Util::FirstToUpper(msgDataMap.value("entity_type").toString());
         entity.name = newState.value("name").toMap();
+        if (newState.contains("description")) {
+            entity.description = newState.value("description").toMap();
+            entity.descriptionProvided = true;
+        }
         if (newState.contains("icon")) {
             entity.icon = newState.value("icon").toString();
         }

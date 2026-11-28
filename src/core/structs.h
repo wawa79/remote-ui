@@ -64,6 +64,8 @@ struct Entity {
     QString     id;
     QString     type;
     QVariantMap name;
+    QVariantMap description;
+    bool        descriptionProvided = false;
     QString     icon;
     QString     integrationId;
     QStringList features;

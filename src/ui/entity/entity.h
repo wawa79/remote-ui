@@ -203,6 +203,7 @@ class Base : public QObject {
     QString     m_id;
     QString     m_name;
     QVariantMap m_name_i18n;
+    QString     m_language;
     QString     m_icon;
     QString     m_area;
     int         m_state;

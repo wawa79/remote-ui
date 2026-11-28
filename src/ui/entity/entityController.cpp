@@ -28,6 +28,29 @@ namespace ui {
 /// A readiness check the user is waiting on gives up well before the core's own request timeout does.
 static constexpr int readinessCheckTimeout = 4000;
 
+// Returns the logical UI group declared by an activity. Duplicate or empty directives are
+// treated as invalid so an ambiguous description never hides a tile unexpectedly.
+static QString singleActivityGroup(const QString& description) {
+    static const QRegularExpression directive(
+        QStringLiteral("^\\s*#SINGLE_ACTIVITY_GROUP\\s*=\\s*(.*?)\\s*$"));
+    QString group;
+    bool found = false;
+    const QStringList lines = description.split(QRegularExpression(QStringLiteral("[\\r\\n]+")));
+    for (const QString& line : lines) {
+        const QRegularExpressionMatch match = directive.match(line);
+        if (!match.hasMatch()) {
+            continue;
+        }
+        const QString value = match.captured(1).trimmed();
+        if (found || value.isEmpty()) {
+            return QString();
+        }
+        group = value;
+        found = true;
+    }
+    return group;
+}
+
 static QString buildCommandKey(const QString& entityId, const QString& command, const QVariantMap& params) {
     // QVariantMap keeps its keys sorted, so the stream is stable for equal content. Unlike a conversion to
     // JSON it is also lossless: a variant without a JSON representation would collapse to null there and
@@ -243,8 +266,8 @@ void EntityController::loadConfiguredEntities(const QString& integrationId) {
 entity::Base* EntityController::createEntityObject(const QString& type, const QString& id, QVariantMap name,
                                                    const QString& icon, const QString& area, const QString& deviceClass,
                                                    const QStringList& features, QVariantMap options, bool enabled,
-                                                   QVariantMap attributes, const QString& integrationId,
-                                                   QObject* parent) {
+                                                   QVariantMap attributes, QVariantMap description,
+                                                   const QString& integrationId, QObject* parent) {
     entity::Base::Type entityType = entity::Base::typeFromString(type);
 
     switch (entityType) {
@@ -268,7 +291,7 @@ entity::Base* EntityController::createEntityObject(const QString& type, const QS
                                            options, integrationId, parent);
         case entity::Base::Type::Activity:
             return new entity::Activity(id, name, m_language, icon, area, deviceClass, features, enabled, attributes,
-                                        options, integrationId, parent);
+                                        description, options, integrationId, parent);
         case entity::Base::Type::Macro:
             return new entity::Macro(id, name, m_language, icon, area, deviceClass, features, enabled, attributes,
                                      integrationId, parent);
@@ -520,6 +543,17 @@ void EntityController::loadAllEntities(int page, quint64 generation,
                 loadAllEntities(pageNum + 1, generation, loadedEntityIds);
             } else {
                 removeMissingEntities(*loadedEntityIds);
+
+                // The bulk entity load does not hydrate every entity field: featuresLoaded() explicitly
+                // documents that features are only delivered by get_entity. Activity directives also
+                // depend on the activity description and included-entity options. Fetch each activity
+                // individually now that the complete entity cache is populated, before its tiles resolve.
+                for (entity::Base* entityObj : m_entities) {
+                    if (entityObj && entityObj->getType() == entity::Base::Type::Activity) {
+                        refreshEntity(entityObj->getId());
+                    }
+                }
+
                 emit allEntitiesLoaded();
             }
         },
@@ -554,7 +588,7 @@ void EntityController::addEntityObject(core::Entity entity) {
     // create entity object here
     entity::Base* obj = createEntityObject(entity.type, entity.id, entity.name, entity.icon, entity.area,
                                            entity.deviceClass, entity.features, entity.options, entity.enabled,
-                                           entity.attributes, entity.integrationId, this);
+                                           entity.attributes, entity.description, entity.integrationId, this);
 
     if (obj != nullptr) {
         // Eager signals — needed regardless of whether entity is displayed
@@ -734,6 +768,13 @@ void EntityController::onEntityChanged(const QString& entityId, core::Entity ent
 
     if (!entity.name.isEmpty()) {
         entityObj->setFriendlyName(entity.name, m_language);
+    }
+
+    if (entity.descriptionProvided) {
+        if (auto* activity = qobject_cast<entity::Activity*>(entityObj)) {
+            activity->setDescription(entity.description);
+            notifyActivityVisibilityChanged();
+        }
     }
 
     if (!entity.icon.isEmpty()) {
@@ -1275,9 +1316,37 @@ void EntityController::onUnitSystemChanged(Config::UnitSystems unitSystem) {
     emit unitSystemChanged(m_unitSystem);
 }
 
+void EntityController::notifyActivityVisibilityChanged() {
+    ++m_activityVisibilityRevision;
+    emit activityVisibilityChanged();
+}
+
+bool EntityController::isActivityTileVisible(const QString& entityId) const {
+    const auto* target = qobject_cast<const entity::Activity*>(m_entities.value(entityId));
+    if (!target) {
+        return true;
+    }
+
+    const QString group = singleActivityGroup(target->getDescription());
+    if (group.isEmpty() || m_activities.contains(entityId)) {
+        return true;
+    }
+
+    for (auto it = m_entities.constBegin(); it != m_entities.constEnd(); ++it) {
+        const auto* activity = qobject_cast<const entity::Activity*>(it.value());
+        if (activity && m_activities.contains(it.key()) &&
+            singleActivityGroup(activity->getDescription()) == group) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void EntityController::onAddToActivities(QString entityId) {
     if (!m_activities.contains(entityId)) {
         m_activities.append(entityId);
+        notifyActivityVisibilityChanged();
         emit activitiesChanged();
         qCDebug(lcEntityController()) << entityId << "added to activities";
         emit activityAdded(entityId);
@@ -1287,6 +1356,7 @@ void EntityController::onAddToActivities(QString entityId) {
 void EntityController::onRemoveFromActivities(QString entityId) {
     if (m_activities.contains(entityId)) {
         m_activities.removeOne(entityId);
+        notifyActivityVisibilityChanged();
         emit activitiesChanged();
         qCDebug(lcEntityController()) << entityId << "removed from activities";
         emit activityRemoved(entityId);
