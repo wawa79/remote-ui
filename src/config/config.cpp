@@ -461,6 +461,16 @@ void Config::setOpenActivityOnApiStart(bool value) {
     emit openActivityOnApiStartChanged();
 }
 
+bool Config::getCloseActivityOnApiStop() {
+    return m_settings->value("ui/closeActivityOnApiStop", false).toBool();
+}
+
+void Config::setCloseActivityOnApiStop(bool value) {
+    m_settings->setValue("ui/closeActivityOnApiStop", value);
+    emit closeActivityOnApiStopChanged();
+}
+
+
 bool Config::getFillMediaArtwork() {
     return m_settings->value("ui/fillMediaArtwork", false).toBool();
 }
