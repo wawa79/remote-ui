@@ -28,12 +28,12 @@ namespace ui {
 /// A readiness check the user is waiting on gives up well before the core's own request timeout does.
 static constexpr int readinessCheckTimeout = 4000;
 
-// Returns the logical UI group declared by an activity. Duplicate or empty directives are
-// treated as invalid so an ambiguous description never hides a tile unexpectedly.
-static QString singleActivityGroup(const QString& description) {
-    static const QRegularExpression directive(
-        QStringLiteral("^\\s*#SINGLE_ACTIVITY_GROUP\\s*=\\s*(.*?)\\s*$"));
-    QString group;
+// Returns the single value declared by an activity directive. Duplicate or empty directives
+// are invalid, so an ambiguous description never changes activity visibility or screen routing.
+static QString singleActivityDirective(const QString& description, const QString& name) {
+    const QRegularExpression directive(
+        QStringLiteral("^\\s*#%1\\s*=\\s*(.*?)\\s*$").arg(QRegularExpression::escape(name)));
+    QString value;
     bool found = false;
     const QStringList lines = description.split(QRegularExpression(QStringLiteral("[\\r\\n]+")));
     for (const QString& line : lines) {
@@ -41,14 +41,18 @@ static QString singleActivityGroup(const QString& description) {
         if (!match.hasMatch()) {
             continue;
         }
-        const QString value = match.captured(1).trimmed();
-        if (found || value.isEmpty()) {
+        const QString candidate = match.captured(1).trimmed();
+        if (found || candidate.isEmpty()) {
             return QString();
         }
-        group = value;
+        value = candidate;
         found = true;
     }
-    return group;
+    return value;
+}
+
+static QString singleActivityGroup(const QString& description) {
+    return singleActivityDirective(description, QStringLiteral("SINGLE_ACTIVITY_GROUP"));
 }
 
 static QString buildCommandKey(const QString& entityId, const QString& command, const QVariantMap& params) {
@@ -469,6 +473,92 @@ int EntityController::checkSequenceReadiness(const QString& entityId, const QStr
     return id;
 }
 
+QString EntityController::activityViewSwitchId(const QString& activityId) {
+    auto* activity = qobject_cast<entity::Activity*>(m_entities.value(activityId));
+    if (!activity) {
+        return QString();
+    }
+
+    const QString switchId = singleActivityDirective(activity->getDescription(), QStringLiteral("ACTIVITY_VIEW"));
+    if (switchId.isEmpty() || !activity->getIncludedEntities().contains(switchId)) {
+        return QString();
+    }
+
+    return qobject_cast<entity::Switch*>(m_entities.value(switchId)) ? switchId : QString();
+}
+
+void EntityController::setActivityViewState(const QString& activityId, bool visible) {
+    const QString switchId = activityViewSwitchId(activityId);
+    auto* viewSwitch = qobject_cast<entity::Switch*>(m_entities.value(switchId));
+    if (!viewSwitch) {
+        return;
+    }
+
+    const int expectedState = visible ? entity::SwitchStates::On : entity::SwitchStates::Off;
+    if (viewSwitch->getState() != expectedState) {
+        // The linked switch is the HA-side control for this screen: send a normal command so its
+        // integration can process it and publish the resulting state back to the remote.
+        if (visible) {
+            viewSwitch->turnOn();
+        } else {
+            viewSwitch->turnOff();
+        }
+    }
+}
+
+void EntityController::refreshActivityViewConnections() {
+    QHash<QString, QString> desired;
+    for (auto it = m_entities.constBegin(); it != m_entities.constEnd(); ++it) {
+        auto* activity = qobject_cast<entity::Activity*>(it.value());
+        if (!activity) {
+            continue;
+        }
+
+        const QString switchId = activityViewSwitchId(it.key());
+        if (!switchId.isEmpty()) {
+            desired.insert(it.key(), switchId);
+        }
+    }
+
+    for (auto it = m_activityViewSwitches.begin(); it != m_activityViewSwitches.end();) {
+        if (desired.value(it.key()) != it.value()) {
+            QObject::disconnect(m_activityViewConnections.value(it.key()));
+            m_activityViewConnections.remove(it.key());
+            it = m_activityViewSwitches.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    for (auto it = desired.constBegin(); it != desired.constEnd(); ++it) {
+        if (m_activityViewSwitches.value(it.key()) == it.value()) {
+            continue;
+        }
+
+        auto* viewSwitch = qobject_cast<entity::Switch*>(m_entities.value(it.value()));
+        if (!viewSwitch) {
+            continue;
+        }
+
+        const QString activityId = it.key();
+        const QString switchId = it.value();
+        const QMetaObject::Connection connection = QObject::connect(
+            viewSwitch, &entity::Base::stateChanged, this,
+            [this, activityId, switchId](const QString& changedEntityId, int state) {
+                if (changedEntityId != switchId) {
+                    return;
+                }
+                if (state == entity::SwitchStates::On) {
+                    emit activityViewChanged(activityId, true);
+                } else if (state == entity::SwitchStates::Off) {
+                    emit activityViewChanged(activityId, false);
+                }
+            });
+        m_activityViewSwitches.insert(activityId, switchId);
+        m_activityViewConnections.insert(activityId, connection);
+    }
+}
+
 QStringList EntityController::getIdsByIntegration(const QString& integrationId) {
     QStringList list;
 
@@ -637,6 +727,7 @@ void EntityController::addEntityObject(core::Entity entity) {
         }
 
         m_entities.insert(obj->getId(), obj);
+        refreshActivityViewConnections();
         qCDebug(lcEntityController()) << "Entity added:" << entity.id;
         emit entityLoaded(true, entity.id);
     } else {
@@ -861,6 +952,9 @@ void EntityController::onEntityChanged(const QString& entityId, core::Entity ent
     if (entity.optionsProvided || entity.options.size() > 0) {
         entityObj->updateOptions(entity.options);
     }
+
+    // ACTIVITY_VIEW depends on both the description and included-entity options.
+    refreshActivityViewConnections();
 }
 
 void EntityController::refreshWebviewOptions(const QString& entityId) {
@@ -902,6 +996,7 @@ void EntityController::onEntityDeleted(const QString& entityId) {
     }
 
     onRemoveFromActivities(entityId);
+    refreshActivityViewConnections();
 }
 
 QObject* EntityController::get(const QString& entityId) {

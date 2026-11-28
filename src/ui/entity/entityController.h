@@ -148,6 +148,10 @@ class EntityController : public QObject {
      */
     Q_INVOKABLE void setEntityState(const QString& entityId, bool on);
 
+    // Activity screen visibility is independent from the activity's power state.
+    Q_INVOKABLE QString activityViewSwitchId(const QString& activityId);
+    Q_INVOKABLE void setActivityViewState(const QString& activityId, bool visible);
+
     /**
      * @brief Drop a voice_start that is still pending for a voice session which has already ended.
      *
@@ -216,6 +220,7 @@ class EntityController : public QObject {
     void dateTimeFormatChanged(QString language, QString timezone, bool clock24h);
     void activityStartedRunning(QString entityId, QString cmdId);
     void activityStartedExternally(QString entityId);
+    void activityViewChanged(QString activityId, bool visible);
     void voiceAssistantCommandError(QString entityId, int code);
     void allEntitiesLoaded();
     void commandInProgressChanged();
@@ -242,6 +247,8 @@ class EntityController : public QObject {
     void onResumeTimeoutWindowSecChanged(int value);
 
  private:
+    void refreshActivityViewConnections();
+
     static EntityController*   s_instance;
     static QString             m_language;    // FIXME(#279) because of static createEntityObject
     static Config::UnitSystems m_unitSystem;  // FIXME(#279) because of static createEntityObject
@@ -252,6 +259,8 @@ class EntityController : public QObject {
 
     core::Api*                    m_core;
     QHash<QString, entity::Base*> m_entities;
+    QHash<QString, QString> m_activityViewSwitches;
+    QHash<QString, QMetaObject::Connection> m_activityViewConnections;
     QSet<QString>                 m_connectedEntities;
     AvailableEntities             m_availableEntities;
     ConfiguredEntities            m_configuredEntities;
