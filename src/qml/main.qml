@@ -96,6 +96,9 @@ ApplicationWindow {
         }
 
         if (containerSecond.loader.active) {
+            if (containerSecond.loader.item) {
+                EntityController.setActivityViewState(containerSecond.loader.item.entityId, false);
+            }
             containerSecond.close();
             containerSecond.loader.source = "";
             containerSecond.loader.active = false;
@@ -489,6 +492,30 @@ ApplicationWindow {
 
                 console.debug("Opening activity started via the API:", entityId);
                 openActivity(entityObj);
+            }
+
+            // ACTIVITY_VIEW controls only the visibility of the activity screen, not its sequence.
+            function onActivityViewChanged(activityId, visible) {
+                if (ui.isOnboarding) {
+                    return;
+                }
+
+                const activityObj = EntityController.get(activityId);
+                if (!activityObj || activityObj.type !== EntityTypes.Activity) {
+                    return;
+                }
+
+                const current = containerSecond.loader.item;
+                if (visible) {
+                    if (current && current.entityId === activityId && !containerThird.loaderThird.active) {
+                        return;
+                    }
+                    console.info("Opening activity screen from ACTIVITY_VIEW:", activityId);
+                    applicationWindow.openActivity(activityObj);
+                } else if (current && current.entityId === activityId && current.state !== "closed") {
+                    console.info("Closing activity screen from ACTIVITY_VIEW:", activityId);
+                    current.close();
+                }
             }
         }
 

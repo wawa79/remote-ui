@@ -129,9 +129,11 @@ Rectangle {
         entityBaseDetailContainer.mainScreenShown = !containerMain.item || containerMain.item.state !== "hidden";
         entityBaseDetailContainer.skipAnimation = skipAnimation;
         entityBaseDetailContainer.state = "open";
+        EntityController.setActivityViewState(entityId, true);
     }
 
     function close() {
+        EntityController.setActivityViewState(entityId, false);
         entityBaseDetailContainer.state = "closed";
 //        buttonNavigation.releaseControl();
 
