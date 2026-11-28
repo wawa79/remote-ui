@@ -11,7 +11,7 @@ import "qrc:/components" as Components
 
 Rectangle {
     id: container
-    width: ui.width - 20; height: groups.count * 140 + title.height
+    width: ui.width - 20; height: groups.contentHeight + title.height
     border { color: colors.divider; width: 1 }
     radius: ui.cornerRadiusSmall
     clip: true
@@ -22,7 +22,7 @@ Rectangle {
         State {
             name: "open"
             PropertyChanges {target: groups; opacity: 1 }
-            PropertyChanges {target: container; height:  groups.count * 140 + titleContainer.height + 40 + (editMode ? 20 : 0); color: colors.black }
+            PropertyChanges {target: container; height:  groups.contentHeight + titleContainer.height + 40 + (editMode ? 20 : 0); color: colors.black }
             PropertyChanges {target: titleContainer; height: 120 }
         },
         State {
@@ -259,7 +259,7 @@ Rectangle {
 
     ListView {
         id: groups
-        width: parent.width-20; height: groups.count * 140
+        width: parent.width-20; height: groups.contentHeight
         anchors { top: titleContainer.bottom; horizontalCenter: parent.horizontalCenter }
 
         maximumFlickVelocity: 6000
@@ -294,6 +294,7 @@ Rectangle {
             id: groupItemLoader
             asynchronous: true
             enabled: !editMode
+            height: item ? item.height : 130
 
             property bool isCurrentItem: ListView.isCurrentItem
 

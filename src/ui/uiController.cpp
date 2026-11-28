@@ -3,6 +3,8 @@
 
 #include "uiController.h"
 
+#include "entity/activity.h"
+
 #include <QGuiApplication>
 #include <QPalette>
 
@@ -946,14 +948,25 @@ void Controller::onActivityRemoved(QString entityId) {
 
 void Controller::updatePageActivities() {
     const QStringList running = m_entityController->getActivities();
-    const auto        groupHasEntity = [this](const QString &groupId, const QString &entityId) {
+    const auto groupHasEntity = [this](const QString &groupId, const QString &entityId) {
         Group *group = m_groupController->getGroup(groupId);
         return group && group->m_items->contains(entityId);
+    };
+    const auto getActivityDescription = [this](const QString &entityId) {
+        auto *activity = qobject_cast<entity::Activity *>(m_entityController->get(entityId));
+        if (!activity) {
+            return QString();
+        }
+
+        // A running activity must be identifiable even when it has no description.
+        // Page::updateActivities uses a null string to distinguish non-activity entities.
+        const QString description = activity->getDescription();
+        return description.isNull() ? QStringLiteral("") : description;
     };
 
     for (int i = 0; i < m_pages.count(); i++) {
         if (Page *page = m_pages.getPage(i)) {
-            page->updateActivities(running, groupHasEntity);
+            page->updateActivities(running, groupHasEntity, getActivityDescription);
         }
     }
 }

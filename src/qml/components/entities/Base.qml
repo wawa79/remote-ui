@@ -25,7 +25,9 @@ import "qrc:/components/entities/media_player" as MediaPlayerComponents
 
 Rectangle {
     id: entityBaseContainer
-    width: isInGroup ? ui.width - 40 : ui.width - 20; height: 130
+    width: isInGroup ? ui.width - 40 : ui.width - 20
+    height: activityTileVisible ? 130 : 0
+    visible: activityTileVisible
     color: colors.black
     opacity: currentEntityObj.enabled ? 1 : 0.5
     radius: ui.cornerRadiusSmall
@@ -37,6 +39,8 @@ Rectangle {
     property string entityId
     property QtObject entityObjDummy: QtObject {
         property string name
+        property string description
+        property var includedEntities: []
         property string icon
         property string stateAsString
         property string stateInfo
@@ -67,6 +71,68 @@ Rectangle {
     property alias button: button
 
     property bool hasMediaImage: currentEntityObj.type === EntityTypes.Media_player && currentEntityObj.mediaImage != ""
+
+    // Reevaluate this binding whenever an activity's state or description changes.
+    property int _activityVisibilityRevision: EntityController.activityVisibilityRevision
+    property bool activityTileVisible: {
+        const revision = _activityVisibilityRevision;
+        return currentEntityObj.type !== EntityTypes.Activity ||
+                EntityController.isActivityTileVisible(entityId);
+    }
+
+    property int activityDirectiveRevision: 0
+    function activityDirectiveEntity(directive) {
+        const revision = activityDirectiveRevision;
+        if (currentEntityObj.type !== EntityTypes.Activity) return null;
+        const lines = (currentEntityObj.description || "").split(/\r?\n/);
+        const pattern = new RegExp("^\\s*#" + directive + "\\s*=\\s*(.*?)\\s*$");
+        let target = null;
+        for (let i = 0; i < lines.length; i++) {
+            const match = lines[i].match(pattern);
+            if (!match) continue;
+            if (target !== null || match[1] === "") return null;
+            target = match[1];
+        }
+        if (target === null) return null;
+        const separator = target.lastIndexOf(".");
+        if (separator <= 0) return null;
+        const entityId = target.slice(0, separator);
+        const sourceProperty = target.slice(separator + 1);
+        if ((currentEntityObj.includedEntities || []).indexOf(entityId) === -1) return null;
+        const linkedEntity = EntityController.get(entityId);
+        return linkedEntity ? { entity: linkedEntity, property: sourceProperty } : null;
+    }
+    function activityDirectiveValue(resolved) {
+        if (!resolved || !resolved.entity) return null;
+        const entity = resolved.entity;
+        switch (resolved.property) {
+        case "name": return entity.name;
+        case "state":
+        case "stateInfo": return entity.stateInfo;
+        case "stateAsString": return entity.stateAsString;
+        case "icon": return entity.icon;
+        case "currentOption": return entity.currentOption;
+        default: return null;
+        }
+    }
+    function displayName() {
+        const value = activityDirectiveValue(activityDirectiveEntity("ACTIVITY_TITLE"));
+        return value !== null && value !== undefined ? value : currentEntityObj.name;
+    }
+    function displayStateInfo() {
+        const value = activityDirectiveValue(activityDirectiveEntity("ACTIVITY_STATE"));
+        return value !== null && value !== undefined ? value : currentEntityObj.stateInfo;
+    }
+    function displayIcon() {
+        if (hasMediaImage) return "";
+        const value = activityDirectiveValue(activityDirectiveEntity("ACTIVITY_ICON"));
+        return value !== null && value !== undefined ? value : currentEntityObj.icon;
+    }
+    function displayIconSuffix() {
+        const resolved = activityDirectiveEntity("ACTIVITY_ICON");
+        if (!resolved) return currentEntityObj.stateAsString;
+        return resolved.entity.type === EntityTypes.Select ? resolved.entity.currentOption : resolved.entity.stateAsString;
+    }
 
     function ensureEntityLoaded() {
         const e = EntityController.get(entityBaseContainer.entityId);
@@ -469,8 +535,8 @@ Rectangle {
     Components.Icon {
         id: icon
         color: colors.offwhite
-        icon: hasMediaImage ? "" : currentEntityObj.icon
-        suffix: currentEntityObj.stateAsString
+        icon: entityBaseContainer.displayIcon()
+        suffix: entityBaseContainer.displayIconSuffix()
         anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter; }
         size: 100
         visible: currentEntityObj.enabled
@@ -549,7 +615,7 @@ Rectangle {
             id: titleText
 
             Layout.fillWidth: true
-            text: currentEntityObj.name
+            text: entityBaseContainer.displayName()
             verticalAlignment: Text.AlignVCenter
             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
             maximumLineCount: 2
@@ -574,14 +640,14 @@ Rectangle {
                 id: statusText
 
                 Layout.fillWidth: true
-                text: currentEntityObj.stateInfo
+                text: entityBaseContainer.displayStateInfo()
                 maximumLineCount: 1
                 elide: Text.ElideRight
                 // on the selection fill everything is drawn in the primary text colour
                 color: selection.shown ? colors.textPrimary : colors.textSecondary
                 verticalAlignment: Text.AlignVCenter
                 font: fonts.help()
-                visible: currentEntityObj.stateInfo !== ""
+                visible: entityBaseContainer.displayStateInfo() !== ""
             }
         }
     }
@@ -609,14 +675,14 @@ Rectangle {
     Connections {
         target: EntityController
         ignoreUnknownSignals: true
-        enabled: !entityBaseContainer.entityObj || entityBaseContainer.entityObj === entityBaseContainer.entityObjDummy
 
         function onEntityLoaded(success, loadedId) {
-            if (!success || loadedId !== entityBaseContainer.entityId) {
-                return;
+            if (success) entityBaseContainer.activityDirectiveRevision++;
+            if (success && loadedId === entityBaseContainer.entityId &&
+                    (!entityBaseContainer.entityObj || entityBaseContainer.entityObj === entityBaseContainer.entityObjDummy)) {
+                entityBaseContainer.ensureEntityLoaded();
             }
-
-            entityBaseContainer.ensureEntityLoaded();
         }
+
     }
 }

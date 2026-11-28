@@ -106,6 +106,7 @@ class ActivitySliderConfig : public QObject {
 class Activity : public Base {
     Q_OBJECT
 
+    Q_PROPERTY(QString description READ getDescription NOTIFY descriptionChanged)
     Q_PROPERTY(int totalSteps READ getTotalSteps NOTIFY totalStepsChanged)
     Q_PROPERTY(SequenceStep *currentStep READ getCurrentStep NOTIFY currentStepChanged)
     Q_PROPERTY(int timeout READ getTimeout NOTIFY timeoutChanged)
@@ -129,8 +130,12 @@ class Activity : public Base {
  public:
     explicit Activity(const QString &id, QVariantMap nameI18n, const QString &language, const QString &icon,
                       const QString &area, const QString &deviceClass, const QStringList &features, bool enabled,
-                      QVariantMap attributes, QVariantMap options, const QString &integrationId, QObject *parent);
+                      QVariantMap attributes, QVariantMap description, QVariantMap options,
+                      const QString &integrationId, QObject *parent);
     ~Activity();
+
+    QString getDescription() const { return m_description; }
+    void setDescription(const QVariantMap& description);
 
     int           getTotalSteps() { return m_totalSteps; }
     SequenceStep *getCurrentStep() { return &m_currentStep; }
@@ -179,6 +184,7 @@ class Activity : public Base {
     void markStartedFromRemote() { m_startedFromRemote = true; }
 
  signals:
+    void descriptionChanged();
     void totalStepsChanged();
     void currentStepChanged();
     void timeoutChanged();
@@ -201,6 +207,8 @@ class Activity : public Base {
     void sendCommandToEntity(QString entityId, QString command, QVariantMap params = QVariantMap());
 
  private:
+    QVariantMap m_descriptionI18n;
+    QString     m_description;
     int          m_totalSteps = 0;
     SequenceStep m_currentStep;
     int          m_timeout = 0;

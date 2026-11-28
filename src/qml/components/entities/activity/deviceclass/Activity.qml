@@ -33,6 +33,60 @@ EntityComponents.BaseDetail {
     // while it is shown, so exactly one layer reacts to a key.
     property int menuSelected: 0
 
+    property int activityDirectiveRevision: 0
+    function activityDirectiveEntity(directive) {
+        const revision = activityDirectiveRevision;
+        if (!entityObj || entityObj.type !== EntityTypes.Activity) return null;
+        const lines = (entityObj.description || "").split(/\r?\n/);
+        const pattern = new RegExp("^\\s*#" + directive + "\\s*=\\s*(.*?)\\s*$");
+        let target = null;
+        for (let i = 0; i < lines.length; i++) {
+            const match = lines[i].match(pattern);
+            if (!match) continue;
+            if (target !== null || match[1] === "") return null;
+            target = match[1];
+        }
+        if (target === null) return null;
+        const separator = target.lastIndexOf(".");
+        if (separator <= 0) return null;
+        const entityId = target.slice(0, separator);
+        const sourceProperty = target.slice(separator + 1);
+        if ((entityObj.includedEntities || []).indexOf(entityId) === -1) return null;
+        const linkedEntity = EntityController.get(entityId);
+        return linkedEntity ? { entity: linkedEntity, property: sourceProperty } : null;
+    }
+    function activityDirectiveValue(resolved) {
+        if (!resolved || !resolved.entity) return null;
+        const entity = resolved.entity;
+        switch (resolved.property) {
+        case "name": return entity.name;
+        case "state":
+        case "stateInfo": return entity.stateInfo;
+        case "stateAsString": return entity.stateAsString;
+        case "icon": return entity.icon;
+        case "currentOption": return entity.currentOption;
+        default: return null;
+        }
+    }
+    function displayActivityName() {
+        const value = activityDirectiveValue(activityDirectiveEntity("ACTIVITY_TITLE"));
+        return value !== null && value !== undefined ? value : entityObj.name;
+    }
+    function displayActivityStatus() {
+        const value = activityDirectiveValue(activityDirectiveEntity("ACTIVITY_STATE"));
+        return value !== null && value !== undefined ? value : qsTr("Tap for more");
+    }
+    function displayActivityIcon() {
+        const value = activityDirectiveValue(activityDirectiveEntity("ACTIVITY_ICON"));
+        return value !== null && value !== undefined ? value : entityObj.icon;
+    }
+    function displayActivityIconSuffix() {
+        const resolved = activityDirectiveEntity("ACTIVITY_ICON");
+        if (!resolved) return "";
+        return resolved.entity.type === EntityTypes.Select ? resolved.entity.currentOption : resolved.entity.stateAsString;
+    }
+
+
     function menuList() {
         return extraContent.currentIndex === 0 ? includedEntitiesList : fixedEntitiesList;
     }
@@ -472,6 +526,14 @@ EntityComponents.BaseDetail {
         }
     }
 
+    Connections {
+        target: EntityController
+        ignoreUnknownSignals: true
+        function onEntityLoaded(success, loadedId) {
+            if (success) activityBase.activityDirectiveRevision++;
+        }
+    }
+
     property var overrideConfigDefault: {
         "DPAD_LEFT": {
             "pressed": function() {
@@ -508,7 +570,8 @@ EntityComponents.BaseDetail {
 
         Components.Icon {
             id: iconOpen
-            icon: entityObj.icon
+            icon: activityBase.displayActivityIcon()
+            suffix: activityBase.displayActivityIconSuffix()
             color: colors.offwhite
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
             size: 70
@@ -524,7 +587,7 @@ EntityComponents.BaseDetail {
             Text {
                 id: titleOpen
                 width: parent.width
-                text: entityObj.name
+                text: activityBase.displayActivityName()
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                 elide: Text.ElideRight
                 maximumLineCount: 1
@@ -536,7 +599,7 @@ EntityComponents.BaseDetail {
             Text {
                 id: titleDesc
                 //: Tap to close menu, tap to see more or, after a failed run, tap to fix the state
-                text: activityMenu.opened ? qsTr("Tap to close") : (title.alert ? qsTr("Tap to fix") : qsTr("Tap for more"))
+                text: activityMenu.opened ? qsTr("Tap to close") : (title.alert ? qsTr("Tap to fix") : displayActivityStatus())
                 width: parent.width
                 height: visible ? implicitHeight : 0
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere

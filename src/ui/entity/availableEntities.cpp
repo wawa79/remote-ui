@@ -117,8 +117,8 @@ void AvailableEntities::loadFromCore(int limit, int page, bool forceReload) {
                     for (const auto &entity : entities) {
                         entity::Base *obj = EntityController::createEntityObject(
                             entity.type, entity.id, entity.name, entity.icon, entity.area, entity.deviceClass,
-                            entity.features, entity.options, entity.enabled, entity.attributes, entity.integrationId,
-                            this);
+                            entity.features, entity.options, entity.enabled, entity.attributes, entity.description,
+                            entity.integrationId, this);
 
                         if (obj != nullptr) {
                             add(obj);
