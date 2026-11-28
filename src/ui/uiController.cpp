@@ -954,14 +954,7 @@ void Controller::updatePageActivities() {
     };
     const auto getActivityDescription = [this](const QString &entityId) {
         auto *activity = qobject_cast<entity::Activity *>(m_entityController->get(entityId));
-        if (!activity) {
-            return QString();
-        }
-
-        // A running activity must be identifiable even when it has no description.
-        // Page::updateActivities uses a null string to distinguish non-activity entities.
-        const QString description = activity->getDescription();
-        return description.isNull() ? QStringLiteral("") : description;
+        return activity ? activity->getDescription() : QString();
     };
 
     for (int i = 0; i < m_pages.count(); i++) {
